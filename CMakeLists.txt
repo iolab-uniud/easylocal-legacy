@@ -1,10 +1,14 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 
 project(EasyLocal LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
-find_package(Boost 1.58.0 COMPONENTS program_options REQUIRED)
+find_package(Boost CONFIG COMPONENTS program_options REQUIRED)
+#find_package(Boost 1.58.0 COMPONENTS program_options REQUIRED)
 find_package(TBB)
+
+# Include the chrono feature detection module
+include(DetectChronoFeatures)
 
 set(subdirs helpers observers runners solvers testers utils modeling)
 

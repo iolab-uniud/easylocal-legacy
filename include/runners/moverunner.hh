@@ -20,7 +20,7 @@ class MoveRunner : public Runner<Input, Solution, CostStructure>
 {
 public:
   /** Modality of this runner. */
-  virtual size_t Modality() const { return ne.Modality(); }
+  virtual size_t Modality() const override { return ne.Modality(); }
 
   /** Constructor.
        @param e_sm */

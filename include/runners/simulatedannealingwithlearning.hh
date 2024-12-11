@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cmath>
+#include "config.hh"
 #include "runners/simulatedannealingtimebased.hh"
 
 namespace EasyLocal
@@ -227,9 +228,15 @@ namespace EasyLocal
         bool accepted = false;
         do
         {
-          //          std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::high_resolution_clock::now(); 
-          std::chrono::time_point<std::chrono::system_clock> start = std::chrono::high_resolution_clock::now(); 
-          //          auto start = std::chrono::high_resolution_clock::now(); 
+#ifdef HAS_STEADY_CLOCK
+          std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::high_resolution_clock::now();
+#elif defined(HAS_SYSTEM_CLOCK)
+          std::chrono::time_point<std::chrono::system_clock> start = std::chrono::high_resolution_clock::now();
+#elif defined(HAS_AUTO_CLOCK)
+          auto start = std::chrono::high_resolution_clock::now();
+#else
+    #error "No suitable chrono clock available"
+#endif
           this->ne.RandomMove(*this->p_current_state, this->current_move.move); //TO DO: ,this->weights);
           this->current_move.cost = this->ne.DeltaCostFunctionComponents(*this->p_current_state, this->current_move.move);
           this->current_move.is_valid = true;
