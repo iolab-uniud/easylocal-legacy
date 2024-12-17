@@ -4,7 +4,6 @@ project(EasyLocal LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Boost CONFIG COMPONENTS program_options REQUIRED)
-#find_package(Boost 1.58.0 COMPONENTS program_options REQUIRED)
 find_package(TBB)
 
 # Include the chrono feature detection module
