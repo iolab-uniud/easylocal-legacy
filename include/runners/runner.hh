@@ -78,6 +78,9 @@ public:
   {
     return iteration_of_best;
   }
+    
+
+    
 
   /** Gets the ... */
   unsigned long int MaxEvaluations() const
@@ -116,6 +119,9 @@ public:
   static std::vector<Runner<Input, Solution, CostStructure> *> runners;
 
   virtual std::shared_ptr<Solution> GetCurrentBestState() const;
+  virtual std::shared_ptr<Solution> GetCurrentState() const;
+  virtual CostStructure GetCurrentSolutionCost() const;
+  virtual Solution GetCurrentSolution() const;
 
 protected:
   /** Constructor.
@@ -188,6 +194,7 @@ protected:
       p_best_state;
 
   mutable std::mutex best_state_mutex;
+  mutable std::mutex current_state_mutex;
 
   /** Cost of the current state. */
   CostStructure current_state_cost;
@@ -247,10 +254,12 @@ CostStructure Runner<Input, Solution, CostStructure>::Go(Solution&s)
   InitializeRun(s);
   while (!MaxEvaluationsExpired() && !StopCriterion() && !LowerBoundReached() && !this->TimeoutExpired())
   {
+      // std::cout << iteration << " // "<<current_state_cost  << std::endl;
     PrepareIteration();
     try
     {
       SelectMove();
+        //std::cout << "selected" << std::endl;
       if (AcceptableMoveFound())
       {
         PrepareMove();
@@ -338,6 +347,24 @@ std::shared_ptr<Solution> Runner<Input, Solution, CostStructure>::GetCurrentBest
 {
   std::lock_guard<std::mutex> lock(best_state_mutex);
   return std::make_shared<Solution>(*p_best_state); // make a state copy
+}
+
+template <class Input, class Solution, class CostStructure>
+std::shared_ptr<Solution> Runner<Input, Solution, CostStructure>::GetCurrentState() const
+{
+  std::lock_guard<std::mutex> lock(current_state_mutex);
+  return std::make_shared<Solution>(*p_current_state); // make a state copy
+}
+
+template <class Input, class Solution, class CostStructure>
+Solution Runner<Input, Solution, CostStructure>::GetCurrentSolution() const
+{
+    return *p_current_state;
+}
+template <class Input, class Solution, class CostStructure>
+CostStructure Runner<Input, Solution, CostStructure>::GetCurrentSolutionCost() const
+{
+    return current_state_cost;
 }
 } // namespace Core
 } // namespace EasyLocal
