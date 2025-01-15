@@ -7,6 +7,7 @@
 #include "runners/simulatedannealing.hh"
 #include "helpers/solutionmanager.hh"
 #include "helpers/neighborhoodexplorer.hh"
+#include "spdlog/spdlog.h"
 
 namespace EasyLocal
 {
@@ -79,6 +80,7 @@ void SimulatedAnnealingFixedTemperature<Input, Solution, Move, CostStructure>::I
   this->neighbors_sampled = 0;
   this->neighbors_accepted = 0;
   this->number_of_temperatures = 1;
+  this->iteration = 0;
 }
 
 

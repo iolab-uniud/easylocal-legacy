@@ -504,6 +504,24 @@ namespace EasyLocal
           if (!found)
             throw std::logic_error("Parameter " + flag + " not in the list");
         }
+
+          /** Sets a given parameter to a given value */
+        template <typename T>
+        void GetParameter(std::string flag, T& value)
+        {
+          for (auto p : this->parameters)
+          {
+            if (p->GetCmdlineFlag() == flag || p->GetCmdlineFlag() == parameters.prefix + "::" + flag)
+            {
+              Parameter<T> *p_par = dynamic_cast<Parameter<T> *>(p);
+              if (!p_par)
+                throw std::logic_error("Parameter " + p->GetCmdlineFlag() + " value of an incorrect type");
+              value = *p_par;
+              return;
+            }
+          }
+          throw std::logic_error("Parameter " + flag + " not in the list");
+        }
         
         bool IsRegistered() const
         {

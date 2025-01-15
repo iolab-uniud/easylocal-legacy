@@ -23,17 +23,28 @@ foreach (subdir ${subdirs})
 	source_group("Header Files\\${subdir_cap}" FILES ${headers})
 endforeach (subdir)
 
+#include(ExternalProject)
+include(FetchContent)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog
+    GIT_TAG v1.15.0  # Replace with a specific tag or commit if needed
+)
+FetchContent_MakeAvailable(spdlog)
+
 file(GLOB headers ${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.hh ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hh)
 source_group("Header Files" FILES ${headers})
 
 add_library(EasyLocal INTERFACE)
+# Set fmtlog to be header-only
 target_include_directories(EasyLocal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(EasyLocal INTERFACE Boost::program_options Threads::Threads)
+target_link_libraries(EasyLocal INTERFACE Boost::program_options Threads::Threads spdlog::spdlog_header_only)
 
 if (TBB_FOUND)
   target_compile_definitions(EasyLocal INTERFACE TBB_AVAILABLE)
   target_link_libraries(EasyLocal INTERFACE TBB::tbb) 
 endif (TBB_FOUND)
+
 target_sources(EasyLocal INTERFACE ${headers})
 target_compile_features(EasyLocal INTERFACE cxx_std_17)
 target_compile_options(EasyLocal INTERFACE "-Wall")

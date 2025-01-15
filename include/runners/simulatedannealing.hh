@@ -242,6 +242,10 @@ bool SimulatedAnnealing<Input, Solution, Move, CostStructure>::CoolingNeeded() c
 template <class Input, class Solution, class Move, class CostStructure>
 void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ApplyCooling()
 {
+#ifdef LOGGING
+  spdlog::info("ApplyCooling: {{ \"evaluations\": {}, \"temperature\": {}, \"best_cost\": {}, \"current_cost\": {}, \"neighbors_accepted\": {} }}", this->evaluations, this->temperature, this->best_state_cost.total, this->current_state_cost.total, this->neighbors_accepted);
+#endif
+
   residual_temperatures = total_number_of_temperatures - number_of_temperatures; 
   if (neighbors_sampled < current_max_neighbors_sampled && residual_temperatures > 0) 
     { // we have saved some iterations thanks to the cut-off: they are 
