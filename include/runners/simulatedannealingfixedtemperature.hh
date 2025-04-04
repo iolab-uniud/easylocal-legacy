@@ -7,7 +7,7 @@
 #include "runners/simulatedannealing.hh"
 #include "helpers/solutionmanager.hh"
 #include "helpers/neighborhoodexplorer.hh"
-#include "spdlog/spdlog.h"
+//#include "spdlog/spdlog.h"
 
 namespace EasyLocal
 {

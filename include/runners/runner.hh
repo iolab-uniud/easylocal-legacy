@@ -13,7 +13,7 @@
 #include "utils/parameter.hh"
 #include "helpers/coststructure.hh"
 
-#include "spdlog/spdlog.h"
+//#include "spdlog/spdlog.h"
 
 namespace EasyLocal
 {

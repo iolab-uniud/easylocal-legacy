@@ -2,7 +2,7 @@
 
 #include <chrono>
 #include <cmath>
-#include "config.hh"
+//#include "config.hh"
 #include "runners/simulatedannealingtimebased.hh"
 
 namespace EasyLocal
