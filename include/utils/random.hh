@@ -63,7 +63,7 @@ namespace EasyLocal
       template <typename T>
       static void Shuffle(std::vector<T>& v)
       {
-        std::shuffle(v.begin(), v.end(), g);
+        std::shuffle(v.begin(), v.end(), GetInstance().g);
       }
       
     private:
