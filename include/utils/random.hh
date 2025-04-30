@@ -59,6 +59,12 @@ namespace EasyLocal
       {
         return GetInstance().g;
       }
+
+      template <typename T>
+      static void Shuffle(std::vector<T>& v)
+      {
+        std::shuffle(v.begin(), v.end(), g);
+      }
       
     private:
       static Random& GetInstance() {
