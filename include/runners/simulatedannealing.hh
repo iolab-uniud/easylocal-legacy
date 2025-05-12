@@ -264,12 +264,6 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ApplyCooling()
   number_of_temperatures++;
   neighbors_sampled = 0;
   neighbors_accepted = 0;
-  //NOTA Roberto 2024-01-01: Soluzione (temporanea?): se il numero di mosse accettate rimane alto e il cut-off viene applicato fino alla temperatura finale, il numero di mosse eseguite è meno di quello impostato. Per non perderle, solo in questo caso scendiamo di temperatura.
-  if(temperature <= min_temperature && this->evaluations < this->max_evaluations)
-  {
-    min_temperature = min_temperature*cooling_rate;
-    total_number_of_temperatures++;
-  }
 } 
 
 
