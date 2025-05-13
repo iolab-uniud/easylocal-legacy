@@ -2,7 +2,8 @@
 
 #include "runners/simulatedannealing.hh"
 
-#define VERBOSE 0
+#define VERBOSE 1
+#define CHECKER 1
 
 namespace EasyLocal
 {
@@ -41,6 +42,7 @@ namespace EasyLocal
       void CompleteMove();
       void InitializeRun();
       bool ReheatCondition();
+      void ApplyCooling();
       // additional parameters
       Parameter<double> reheat_ratio;
       Parameter<double> first_descent_evaluations_share;
@@ -69,11 +71,12 @@ namespace EasyLocal
           throw IncorrectParameterValue(first_descent_evaluations_share, "should be a value in the interval ]0, 1]");
         }
         this->max_neighbors_sampled = ceil(this->max_neighbors_sampled * first_descent_evaluations_share);
+        this->current_max_neighbors_sampled = this->max_neighbors_sampled;
         first_descent_evaluations = ceil(this->max_evaluations * first_descent_evaluations_share);
         other_descents_evaluations = ceil ((this->max_evaluations - first_descent_evaluations) / max_reheats);
+        this->max_neighbors_accepted = static_cast<unsigned>(this->max_neighbors_sampled * this->neighbors_accepted_ratio);
       }
-      // static_cast<unsigned>(max_neighbors_sampled * neighbors_accepted_ratio);
-      this->max_neighbors_accepted = static_cast<unsigned>(this->max_neighbors_sampled * this->neighbors_accepted_ratio); // ceil(this->max_neighbors_sampled * this->neighbors_accepted_ratio);
+      
       if (max_reheats == 0)
       {
         if (first_descent_evaluations_share != 1.0)
@@ -84,6 +87,8 @@ namespace EasyLocal
         {
           throw IncorrectParameterValue(reheat_ratio, "should be zero when max_reheats is 0");
         }
+        first_descent_evaluations = this->max_evaluations;
+        other_descents_evaluations = 0;
       }
 
 #if VERBOSE == 1
@@ -110,17 +115,16 @@ namespace EasyLocal
     {
       SimulatedAnnealing<Input, Solution, Move, CostStructure>::CompleteMove();
       
-      if (ReheatCondition() && reheats <= max_reheats)
+      if (ReheatCondition() && reheats < max_reheats)
       {
         // all reheats are equal
         if (reheats == 0)
 	      {
           this->start_temperature = this->start_temperature * reheat_ratio;
-          // this->total_number_of_temperatures = -log(this->start_temperature / this->min_temperature) / log(this->cooling_rate);    
           this->total_number_of_temperatures = static_cast<unsigned>(ceil(-log(this->start_temperature / this->min_temperature) / log(this->cooling_rate)));      
           this->max_neighbors_sampled = other_descents_evaluations / this->total_number_of_temperatures; 
-          // set the cutoff
-          this->max_neighbors_accepted = ceil(this->neighbors_accepted_ratio * this->max_neighbors_sampled);
+          this->current_max_neighbors_sampled = this->max_neighbors_sampled;
+          this->max_neighbors_accepted = static_cast<unsigned>(this->neighbors_accepted_ratio * this->max_neighbors_sampled);
 
 #if VERBOSE == 1
           std::cout << "Reheat parameters are reset -----------------------" << std::endl;
@@ -140,6 +144,9 @@ namespace EasyLocal
         reheats++;
         // reset temperature
         this->temperature = this->start_temperature;
+        this->number_of_temperatures = 1;
+        this->neighbors_sampled = 0;
+        this->neighbors_accepted = 0;
 #if VERBOSE == 1
         std::cout << "Performing reheat -----------------------" << std::endl;
         std::cout << "max_reheats " << max_reheats << std::endl;
@@ -150,10 +157,50 @@ namespace EasyLocal
 
     }
     
+  template <class Input, class Solution, class Move, class CostStructure>
+  void SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::ApplyCooling()
+  {
+  #ifdef LOGGING
+    // spdlog::info("ApplyCooling: {{ \"evaluations\": {}, \"temperature\": {}, \"best_cost\": {}, \"current_cost\": {}, \"neighbors_accepted\": {} }}", this->evaluations, this->temperature, this->best_state_cost.total, this->current_state_cost.total, this->neighbors_accepted);
+  #endif
+#if CHECKER == 2
+    std::cout << "Calling cooling in SA reheating" << std::endl;
+#endif
+    this->residual_temperatures = this->total_number_of_temperatures - this->number_of_temperatures; 
+    if (this->neighbors_sampled < this->current_max_neighbors_sampled && this->residual_temperatures > 0) 
+    { // we have saved some iterations thanks to the cut-off: they are 
+      // redistributed to the remaining temperatures
+      this->residual_iterations = first_descent_evaluations_share - this->evaluations;
+      if (reheats > 0)
+      {
+        this->residual_iterations = first_descent_evaluations_share + reheats * other_descents_evaluations - this->evaluations;
+      }
+      this->current_max_neighbors_sampled = this->residual_iterations/this->residual_temperatures;
+    }
+    if(this->residual_temperatures > 0)
+    {
+      this->temperature *= this->cooling_rate;
+      this->number_of_temperatures++;
+      this->neighbors_sampled = 0;
+      this->neighbors_accepted = 0;
+    }
+#if CHECKER >= 1
+    if (this->temperature < this->min_temperature)
+    {
+      std::cout << "Temperature is not under control -- " << this->number_of_temperatures << " (min "<< this->min_temperature << " vs temperature " << this->temperature << ")" << std::endl;
+    }
+#endif
+  #if VERBOSE > 1
+    std::cerr << "V1 ";
+    PrintStatus(std::cerr);
+    std::cerr << std::endl;
+  #endif
+  } 
+
     template <class Input, class Solution, class Move, class CostStructure>
     bool SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::ReheatCondition()
     {
-      if (max_reheats == 0)
+      if (max_reheats == 0 || reheats >= max_reheats)
       {
         return false; 
       }
@@ -163,7 +210,7 @@ namespace EasyLocal
     template <class Input, class Solution, class Move, class CostStructure>
     bool SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::StopCriterion()
     {
-      bool condition = reheats > max_reheats;
+      bool condition = reheats >= max_reheats  && this->temperature <= this->min_temperature ;
 #if VERBOSE == 1
       if (condition)
       {
@@ -174,7 +221,6 @@ namespace EasyLocal
 #endif
       return condition;
     }
-    
     /**
      Create a string containing the status of the runner
      */
