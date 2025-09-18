@@ -16,7 +16,8 @@ namespace EasyLocal
      
      Random::Seed(value);
      */
-    class Random
+    template <typename RNG = std::ranlux24>
+    class RandomTemplate
     {
     public:
       /** Generates an uniform random integer in [a, b].
@@ -44,7 +45,7 @@ namespace EasyLocal
       /** Sets a new seed for the random engine. */
       static unsigned int SetSeed(unsigned int seed)
       {
-        Random& r = GetInstance();
+        RandomTemplate& r = GetInstance();
         r.g.seed(seed);
         return r.seed = seed;
       }
@@ -55,7 +56,7 @@ namespace EasyLocal
       }
       
       
-      static std::mt19937& GetGenerator()
+      static RNG& GetGenerator()
       {
         return GetInstance().g;
       }
@@ -67,21 +68,23 @@ namespace EasyLocal
       }
       
     private:
-      static Random& GetInstance() {
-        static Random instance;
+      static RandomTemplate& GetInstance() {
+        static RandomTemplate instance;
         return instance;
       }
       
-      Random()
+      RandomTemplate()
       {
         std::random_device dev;
         seed = dev();
         g.seed(seed);
       }
       
-      std::mt19937 g;
+      RNG g;
       
       unsigned int seed;
     };
+
+    typedef RandomTemplate<> Random;
   } // namespace Core
 } // namespace EasyLocal
