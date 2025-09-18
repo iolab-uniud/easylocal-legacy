@@ -16,7 +16,7 @@ namespace EasyLocal
      
      Random::Seed(value);
      */
-    template <typename RNG = std::ranlux24>
+    template <typename RNG = std::ranlux24_base>
     class RandomTemplate
     {
     public:
