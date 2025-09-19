@@ -218,7 +218,8 @@ namespace EasyLocal
       virtual void FromJSON(json v)
       {
         std::string flag = split(this->cmdline_flag, std::regex("::"))[1];
-        this->value = v[flag];
+        this->value = v[flag].get<T>();
+        this->is_set = true;
       }
       
       virtual void CopyValue(const AbstractParameter &ap)
