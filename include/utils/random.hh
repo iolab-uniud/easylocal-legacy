@@ -116,9 +116,9 @@ namespace EasyLocal
       {
         auto &r = GetInstance();
         r.seed = seed ? seed : 1u;
-        r.g16.seed(r.seed);
-        r.g32.seed(r.seed);
-        r.g64.seed(r.seed);
+        r.g16.seed(static_cast<decltype(r.g16)::result_type>(r.seed));
+        r.g32.seed(static_cast<decltype(r.g32)::result_type>(r.seed));
+        r.g64.seed(static_cast<decltype(r.g64)::result_type>(r.seed));
         return r.seed;
       }
 
@@ -140,17 +140,18 @@ namespace EasyLocal
       }
 
     private:
-      static Random &GetInstance()
-      {
-        static Random instance;
+      static Random& GetInstance() {
+        static Random instance;              // Meyers singleton (thread-safe)
         return instance;
       }
 
       Random()
       {
-        std::random_device dev;
-        seed = dev();
-        SetSeed(seed);
+        std::random_device rd;
+        seed = rd() ? rd() : 1u; // avoid seed=0
+        g16.seed(static_cast<decltype(g16)::result_type>(seed));
+        g32.seed(static_cast<decltype(g32)::result_type>(seed));
+        g64.seed(static_cast<decltype(g64)::result_type>(seed));
       }
 
       std::linear_congruential_engine<uint_fast16_t, 26125, 62303, 0> g16;
