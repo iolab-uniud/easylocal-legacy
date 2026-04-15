@@ -60,7 +60,8 @@ protected:
   unsigned int current_max_neighbors_sampled; // initially set to the max value, recomputed based on saved iterations by cut-off
   
   size_t neighbors_sampled, neighbors_accepted;  
-  unsigned residual_temperatures, residual_iterations;
+  unsigned residual_temperatures;
+  unsigned long int residual_iterations; // so this has the same type of the maximum number of iterations
   int number_of_temperatures;
   int total_number_of_temperatures;
   double temperature_range;
