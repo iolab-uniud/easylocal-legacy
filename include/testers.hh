@@ -7,5 +7,5 @@
 #include "testers/tester.hh"
 #include "testers/movetester.hh"
 #include "testers/componenttester.hh"
-#include "testers/kickertester.hh"
+//#include "testers/kickertester.hh"
 

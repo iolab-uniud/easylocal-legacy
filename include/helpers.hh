@@ -31,7 +31,7 @@
 
 #include "helpers/costcomponent.hh"
 #include "helpers/deltacostcomponent.hh"
-#include "helpers/kicker.hh"
+//#include "helpers/kicker.hh"
 #include "helpers/neighborhoodexplorer.hh"
 #include "helpers/solutionmanager.hh"
 

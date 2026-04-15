@@ -2,7 +2,7 @@
 
 #include "runners/simulatedannealing.hh"
 
-#define VERBOSE 1
+//#define VERBOSE 1
 #define CHECKER 1
 
 namespace EasyLocal

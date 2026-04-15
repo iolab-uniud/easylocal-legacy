@@ -56,6 +56,7 @@ protected:
   Parameter<unsigned int> max_neighbors_accepted;  
   // state of SA
   double temperature; /**< The current temperature. */
+  unsigned int initial_max_neighbors_sampled, initial_max_neighbors_accepted;
   unsigned int current_max_neighbors_sampled; // initially set to the max value, recomputed based on saved iterations by cut-off
   
   size_t neighbors_sampled, neighbors_accepted;  
@@ -131,14 +132,18 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::InitializeRun()
   total_number_of_temperatures = static_cast<unsigned>(ceil(-log(temperature_range) / log(cooling_rate)));      
   if (this->max_evaluations.IsSet())
     { // Compute max_neighbors_sampled from max_evaluations
-      max_neighbors_sampled = static_cast<unsigned>(this->max_evaluations / total_number_of_temperatures);
+      initial_max_neighbors_sampled = static_cast<unsigned>(this->max_evaluations / total_number_of_temperatures);
     }
+  else 
+    initial_max_neighbors_sampled = max_neighbors_sampled;
 
   // max_neighbors_sampled is fixed (and used for cut-off), its current value changes due to saved iterations
-  current_max_neighbors_sampled = max_neighbors_sampled;
+  current_max_neighbors_sampled = initial_max_neighbors_sampled;
 
-  if (!max_neighbors_accepted.IsSet())
-    max_neighbors_accepted = static_cast<unsigned>(max_neighbors_sampled * neighbors_accepted_ratio);
+  if (max_neighbors_accepted.IsSet())
+    initial_max_neighbors_accepted = max_neighbors_accepted;
+  else
+    initial_max_neighbors_accepted = static_cast<unsigned>(initial_max_neighbors_sampled * neighbors_accepted_ratio);
     
   // initialize dynamic counters
   neighbors_sampled = 0;
@@ -194,7 +199,7 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::PrintStatus(std::
   os << "Status: (" << this->number_of_temperatures << "|" << this->evaluations << ")" 
      << " T = " << this->Temperature() 
      << " S/A/ar = [" << this->neighbors_sampled << "/" << this->current_max_neighbors_sampled << "|" 
-     << this->neighbors_accepted << "/" << this->max_neighbors_accepted << "|" 
+     << this->neighbors_accepted << "/" << this->initial_max_neighbors_accepted << "|" 
      << static_cast<double>(this->neighbors_accepted)/this->neighbors_sampled << "],"
      << " OF = [" << this->current_state_cost.total << "/" << this->best_state_cost.total << "]";
 }
@@ -236,7 +241,7 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::CompleteIteration
 template <class Input, class Solution, class Move, class CostStructure>
 bool SimulatedAnnealing<Input, Solution, Move, CostStructure>::CoolingNeeded() const
 {
-  return neighbors_sampled >= current_max_neighbors_sampled || neighbors_accepted >= max_neighbors_accepted;
+  return neighbors_sampled >= current_max_neighbors_sampled || neighbors_accepted >= initial_max_neighbors_accepted;
 } 
 
 template <class Input, class Solution, class Move, class CostStructure>
