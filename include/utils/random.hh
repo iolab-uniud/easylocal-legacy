@@ -154,7 +154,7 @@ namespace EasyLocal
         g64.seed(static_cast<decltype(g64)::result_type>(seed));
       }
 
-      std::linear_congruential_engine<uint_fast16_t, 26125, 62303, 0> g16;
+      std::linear_congruential_engine<uint_fast32_t, 48271, 0, 2147483647>  g16;
       std::linear_congruential_engine<uint_fast32_t, 48271, 0, 2147483647> g32;
       std::linear_congruential_engine<uint_fast64_t, 6364136223846793005ULL, 1442695040888963407ULL, 0> g64;
 
