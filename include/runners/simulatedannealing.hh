@@ -117,19 +117,23 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::InitializeRun()
     throw IncorrectParameterValue(max_neighbors_sampled, "should be set if max_evaluations is not set explicitly");
 
   if (compute_start_temperature)
-    {
-      if (start_temperature.IsSet())
-         throw IncorrectParameterValue(start_temperature, "should not be assigned, as it is computed");
-      ComputeStartTemperature();
-     }
-
-  if (start_temperature < min_temperature)
-    throw IncorrectParameterValue(start_temperature, "should be greater than min_temperature");
+  {
+   if (start_temperature.IsSet())
+      throw IncorrectParameterValue(start_temperature, "should not be assigned, as it is computed");
+   ComputeStartTemperature();
+   if (temperature < min_temperature)
+     throw IncorrectParameterValue(min_temperature, "should be smaller than computed start temperature" + std::to_string(temperature));
+  }
+  else
+  {
+    temperature = start_temperature;
+    if (start_temperature < min_temperature)
+      throw IncorrectParameterValue(start_temperature, "should be greater than min_temperature");
+  }
   if (min_temperature <= 0.0)
     throw IncorrectParameterValue(min_temperature, "should be greater than zero");
-
-  temperature = start_temperature;
-  temperature_range = start_temperature / min_temperature;
+  
+  temperature_range = temperature / min_temperature;
   total_number_of_temperatures = static_cast<unsigned>(ceil(-log(temperature_range) / log(cooling_rate)));      
   if (this->max_evaluations.IsSet())
     { // Compute max_neighbors_sampled from max_evaluations
@@ -178,11 +182,11 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ComputeStartTempe
         }
       }
       positive_mean /= static_cast<double>(positive_cost_values.size());
-      start_temperature = -positive_mean / log(INITPROB);
+      temperature = -positive_mean / log(INITPROB);
 
       /*As an alterative, the median can be use (instead of the mean)*/    
       // double positive_median = boost::math::statistics::median(positive_cost_values.begin(), positive_cost_values.end());
-      // start_temperature = -positive_median / log(INITPROB);
+      // temperature = -positive_median / log(INITPROB);
     }
 
  /*
