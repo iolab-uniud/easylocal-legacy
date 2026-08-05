@@ -155,28 +155,37 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::InitializeRun()
 template <class Input, class Solution, class Move, class CostStructure>
 void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ComputeStartTemperature()
 {
-  // TODO: test this procedure
-  // Compute a start temperature by sampling the search space and computing the variance
-  // according to [van Laarhoven and Aarts, 1987] (allow an acceptance ratio of approximately 80%)
-  const unsigned int samples = 100;
-  std::vector<CostStructure> cost_values(samples);
-  double mean = 0.0, variance = 0.0;
-  for (unsigned int i = 0; i < samples; i++)
-    {
-      Move mv;
-      this->ne.RandomMove(*this->p_current_state, mv);
-      cost_values[i] = this->ne.DeltaCostFunctionComponents(*this->p_current_state, mv);
-      mean += cost_values[i].total;
-    }
-  mean /= samples;
-  for (unsigned int i = 0; i < samples; i++)
-    variance += (cost_values[i].total - mean) * (cost_values[i].total - mean) / samples;
-  start_temperature = variance;
-  /*From "An improved annealing scheme for the QAP. Connoly. EJOR 46 (1990) 93-100"
-    temperature = min(cost_values.begin(), cost_values.end()) + (max(cost_values.begin(), cost_values.end()) - min(cost_values.begin(), cost_values.end()))/10;*/
-}
+      /*
+      Compute a start temperature by sampling the search space 
+      From "Optimization by Simulated Annealing: An experimental evaluation, part I". Johnson et al (1989).*/
+    
+      const unsigned int samples = 1000;
+      double INITPROB = 0.5; // target_acceptance ratio, INITPROB = 0.5 if the quality is assumed to be average, and INITPROB = 0.2 if it is assumed to be good. (Chopard & Tomassini, 2018, Introduction to metaheuristics)
+  
+      std::vector<CostStructure> cost_values(samples);
+      std::vector<double> positive_cost_values;
 
-/**
+      double positive_mean = 0.0;
+      for (unsigned int i = 0; i < samples; i++)
+      {
+        Move mv;
+        this->ne.RandomMove(*this->p_current_state, mv);
+        cost_values[i] = this->ne.DeltaCostFunctionComponents(*this->p_current_state, mv);
+        if (cost_values[i] > 0)
+        {
+          positive_cost_values.push_back(cost_values[i].total);
+          positive_mean += cost_values[i].total;
+        }
+      }
+      positive_mean /= static_cast<double>(positive_cost_values.size());
+      start_temperature = -positive_mean / log(INITPROB);
+
+      /*As an alterative, the median can be use (instead of the mean)*/    
+      // double positive_median = boost::math::statistics::median(positive_cost_values.begin(), positive_cost_values.end());
+      // start_temperature = -positive_median / log(INITPROB);
+    }
+
+ /*
  A move is randomly picked.
  */
 template <class Input, class Solution, class Move, class CostStructure>
