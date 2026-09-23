@@ -160,9 +160,6 @@ namespace EasyLocal
   template <class Input, class Solution, class Move, class CostStructure>
   void SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::ApplyCooling()
   {
-  #ifdef LOGGING
-    // spdlog::info("ApplyCooling: {{ \"evaluations\": {}, \"temperature\": {}, \"best_cost\": {}, \"current_cost\": {}, \"neighbors_accepted\": {} }}", this->evaluations, this->temperature, this->best_state_cost.total, this->current_state_cost.total, this->neighbors_accepted);
-  #endif
 #if CHECKER == 2
     std::cout << "Calling cooling in SA reheating" << std::endl;
 #endif

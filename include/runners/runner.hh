@@ -5,15 +5,16 @@
 #include <chrono>
 #include <condition_variable>
 #include <atomic>
+#include <functional>
 #include <typeinfo>
 
 #include "helpers/solutionmanager.hh"
 #include "helpers/neighborhoodexplorer.hh"
 #include "utils/interruptible.hh"
 #include "utils/parameter.hh"
+#include "utils/random.hh"
 #include "helpers/coststructure.hh"
-
-//#include "spdlog/spdlog.h"
+#include "tracing/channel.hh"
 
 namespace EasyLocal
 {
@@ -125,6 +126,26 @@ public:
   virtual CostStructure GetCurrentSolutionCost() const;
   virtual Solution GetCurrentSolution() const;
 
+  void SetTraceSink(Trace::SinkPtr sink)
+  {
+    trace.SetSink(std::move(sink));
+  }
+
+  void ClearTraceSink()
+  {
+    trace.ClearSink();
+  }
+
+  void SetTraceOptions(Trace::Options options)
+  {
+    trace.SetOptions(options);
+  }
+
+  void SetTraceSolutionEncoder(std::function<nlohmann::json(const Solution &)> encoder)
+  {
+    trace_solution_encoder = std::move(encoder);
+  }
+
 protected:
   /** Constructor.
        @param i a reference to the input
@@ -175,6 +196,25 @@ protected:
   /** Actions to be performed after a move has been done. Redefinition intended. */
   virtual void CompleteMove(){};
 
+  virtual void TraceAppliedMove()
+  {
+    TraceEvent(Trace::Event::MoveApplied);
+  }
+
+  template <typename Collector>
+  void TraceEvent(Trace::Event event, Collector &&collector)
+  {
+    trace.Emit(event, name, iteration, evaluations, [&](Trace::EventBuilder &builder) {
+      AddTraceData(event, builder);
+      std::forward<Collector>(collector)(builder);
+    });
+  }
+
+  void TraceEvent(Trace::Event event)
+  {
+    TraceEvent(event, [](Trace::EventBuilder &) {});
+  }
+
   /** Implements Interruptible. */
   virtual std::function<CostStructure(Solution&)> MakeFunction()
   {
@@ -220,7 +260,11 @@ protected:
           If the vector is empty (default), it is assumed all weigths to be 1.0. */
   std::vector<double> weights;
 
+  nlohmann::json TraceCost(const CostStructure &cost) const;
+
 private:
+  void AddTraceData(Trace::Event event, Trace::EventBuilder &builder) const;
+
   /** Stores the move and updates the related data. */
   virtual void UpdateBestState() = 0;
 
@@ -229,6 +273,10 @@ private:
 
   /** Actions that must be done at the end of the search. */
   CostStructure TerminateRun(Solution&);
+
+  Trace::Channel trace;
+  std::function<nlohmann::json(const Solution &)> trace_solution_encoder;
+  Trace::StopReason stop_reason = Trace::StopReason::StopCriterion;
 };
 
 /*************************************************************************
@@ -254,8 +302,29 @@ template <class Input, class Solution, class CostStructure>
 CostStructure Runner<Input, Solution, CostStructure>::Go(Solution&s)
 {
   InitializeRun(s);
-  while (!MaxEvaluationsExpired() && !StopCriterion() && !LowerBoundReached() && !this->TimeoutExpired())
+  while (true)
   {
+    if (MaxEvaluationsExpired())
+    {
+      stop_reason = Trace::StopReason::MaxEvaluations;
+      break;
+    }
+    if (StopCriterion())
+    {
+      stop_reason = Trace::StopReason::StopCriterion;
+      break;
+    }
+    if (LowerBoundReached())
+    {
+      stop_reason = Trace::StopReason::LowerBound;
+      break;
+    }
+    if (this->TimeoutExpired())
+    {
+      stop_reason = this->WasInterrupted() ? Trace::StopReason::Interrupted : Trace::StopReason::Timeout;
+      break;
+    }
+
       // std::cout << iteration << " // "<<current_state_cost  << std::endl;
     PrepareIteration();
     try
@@ -267,14 +336,17 @@ CostStructure Runner<Input, Solution, CostStructure>::Go(Solution&s)
         PrepareMove();
         MakeMove();
         CompleteMove();
+        TraceAppliedMove();
         UpdateBestState();
       }
     }
     catch (EmptyNeighborhood&)
     {
+      stop_reason = Trace::StopReason::EmptyNeighborhood;
       break;
     }
     CompleteIteration();
+    TraceEvent(Trace::Event::Progress);
   }
 
   return TerminateRun(s);
@@ -307,7 +379,10 @@ void Runner<Input, Solution, CostStructure>::InitializeRun(Solution&s)
   p_best_state = std::make_shared<Solution>(s);    // creates the best state object by copying the content of s
   p_current_state = std::make_shared<Solution>(s); // creates the current state object by copying the content of s
   best_state_cost = current_state_cost = sm.CostFunctionComponents(s);
+  stop_reason = Trace::StopReason::StopCriterion;
   InitializeRun();
+  trace.BeginRun();
+  TraceEvent(Trace::Event::RunStarted);
 }
 
 template <class Input, class Solution, class CostStructure>
@@ -315,7 +390,50 @@ CostStructure Runner<Input, Solution, CostStructure>::TerminateRun(Solution&s)
 {
   s = *p_best_state;
   TerminateRun();
+  TraceEvent(Trace::Event::RunFinished, [&](Trace::EventBuilder &event) {
+    event.Field("stop_reason", Trace::Name(stop_reason));
+  });
   return best_state_cost;
+}
+
+template <class Input, class Solution, class CostStructure>
+nlohmann::json Runner<Input, Solution, CostStructure>::TraceCost(const CostStructure &cost) const
+{
+  return {{"total", cost.total},
+          {"violations", cost.violations},
+          {"objective", cost.objective},
+          {"components", cost.all_components},
+          {"weighted", cost.weighted},
+          {"is_weighted", cost.is_weighted}};
+}
+
+template <class Input, class Solution, class CostStructure>
+void Runner<Input, Solution, CostStructure>::AddTraceData(Trace::Event event, Trace::EventBuilder &builder) const
+{
+  const Trace::Options options = trace.GetOptions();
+  if (options.capture_costs)
+  {
+    builder.Field("current_cost", TraceCost(current_state_cost));
+    builder.Field("best_cost", TraceCost(best_state_cost));
+  }
+
+  if (event == Trace::Event::RunStarted)
+  {
+    const bool parameters_complete = this->IsRegistered();
+    builder.Field("parameters_complete", parameters_complete);
+    if (parameters_complete)
+      builder.Field("parameters", this->ParametersToJSON());
+    builder.Field("random_seed", Random::GetSeed());
+    builder.Field("modality", Modality());
+  }
+
+  if (!trace_solution_encoder || options.capture_solution == Trace::CaptureSolution::None)
+    return;
+
+  if (event == Trace::Event::BestUpdated || event == Trace::Event::RunFinished)
+    builder.Field("best_solution", trace_solution_encoder(*p_best_state));
+  else if (options.capture_solution == Trace::CaptureSolution::All)
+    builder.Field("current_solution", trace_solution_encoder(*p_current_state));
 }
 
 template <class Input, class Solution, class CostStructure>

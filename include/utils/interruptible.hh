@@ -37,9 +37,9 @@ class Interruptible
 {
 public:
   /** Constructor, sets timeout_expired to false to avoid problems when classes are called without threads. */
-  Interruptible() : timeout_expired(false) {}
+  Interruptible() : timeout_expired(false), interrupted(false) {}
   
-  Interruptible(const Interruptible& i) : timeout_expired(false) {}
+  Interruptible(const Interruptible& i) : timeout_expired(false), interrupted(false) {}
 
   /** Runs this interruptible synchronously for a specified number of milliseconds.
        @param timeout a duration in milliseconds
@@ -48,6 +48,7 @@ public:
   Rtype SyncRun(std::chrono::milliseconds timeout, Args... args)
   {
     timeout_expired = false;
+    interrupted = false;
     std::future<Rtype> result = std::async(std::launch::async, this->MakeFunction(), std::ref(args)...);
 
     // If timeout is greater than zero
@@ -73,6 +74,7 @@ public:
   std::shared_future<Rtype> AsyncRun(std::chrono::milliseconds timeout, Args... args)
   {
     timeout_expired = false;
+    interrupted = false;
     std::shared_future<Rtype> result = std::async(std::launch::async, this->MakeFunction(), std::ref(args)...);
 
     // If timeout is greater than zero, launch stopper thread
@@ -95,17 +97,21 @@ public:
   /** Interrupt execution. */
   inline void Interrupt()
   {
+    interrupted = true;
     timeout_expired = true;
   }
 
   virtual void ResetTimeout()
   {
     timeout_expired = false;
+    interrupted = false;
   };
 
 protected:
   /** Checks if timeout has expired. */
   inline const std::atomic<bool> &TimeoutExpired() { return timeout_expired; }
+
+  inline const std::atomic<bool> &WasInterrupted() { return interrupted; }
 
   /** Produces a function object to be launched in a separate thread. */
   inline virtual std::function<Rtype(Args &...)> MakeFunction()
@@ -122,6 +128,7 @@ protected:
 private:
   /** Atomic flags. */
   std::atomic<bool> timeout_expired;
+  std::atomic<bool> interrupted;
 };
 } // namespace Core
 } // namespace EasyLocal

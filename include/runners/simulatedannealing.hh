@@ -261,9 +261,7 @@ bool SimulatedAnnealing<Input, Solution, Move, CostStructure>::CoolingNeeded() c
 template <class Input, class Solution, class Move, class CostStructure>
 void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ApplyCooling()
 {
-#ifdef LOGGING
-  spdlog::info("ApplyCooling: {{ \"evaluations\": {}, \"temperature\": {}, \"best_cost\": {}, \"current_cost\": {}, \"neighbors_accepted\": {} }}", this->evaluations, this->temperature, this->best_state_cost.total, this->current_state_cost.total, this->neighbors_accepted);
-#endif
+  const double previous_temperature = temperature;
 
   residual_temperatures = total_number_of_temperatures - number_of_temperatures; 
   if (neighbors_sampled < current_max_neighbors_sampled && residual_temperatures > 0) 
@@ -280,6 +278,14 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ApplyCooling()
   std::cerr << std::endl;
 #endif
   temperature *= cooling_rate;
+  this->TraceEvent(Trace::Event::TemperatureChanged, [&](Trace::EventBuilder &event) {
+    event.Field("previous_temperature", previous_temperature)
+        .Field("temperature", temperature)
+        .Field("neighbors_sampled", neighbors_sampled)
+        .Field("neighbors_accepted", neighbors_accepted)
+        .Field("acceptance_ratio", neighbors_sampled == 0 ? 0.0 : static_cast<double>(neighbors_accepted) / neighbors_sampled)
+        .Field("temperature_index", number_of_temperatures + 1);
+  });
   number_of_temperatures++;
   neighbors_sampled = 0;
   neighbors_accepted = 0;
