@@ -1,3 +1,10 @@
+3.3.1
+
+* FirstDescent terminates: NeighborhoodExplorer::SelectFirst(start_move, ...)
+  looped forever once the scan from start_move reached the last move without
+  an acceptable move; it now explores cyclically, from the move after
+  start_move to the last one, then from the first move back to start_move.
+
 3.0 francis
 
 * Code has been rewritten to meet C++11 standard
