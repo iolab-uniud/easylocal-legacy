@@ -2,7 +2,8 @@
 
 #include <chrono>
 #include <cmath>
-#include "runners/simulatedannealingevaluationbased.hh"
+//#include "config.hh"
+#include "runners/simulatedannealingtimebased.hh"
 
 namespace EasyLocal
 {
@@ -54,21 +55,17 @@ namespace EasyLocal
         //   - update the learning data of the neighborhood
       }
 
-      void CompleteIteration() override 
+      virtual void ApplyLearning()
       {
-        if (this->CoolingNeeded())
-          {  // the batch is finished -> update probabilities and reset learning data
             //vector<double> avg_improvement(this->ne.Modality(),0);
             std::vector<double> reward(this->ne.Modality(),0);
             //double total_avg_improvement = 0;
             double total_reward = 0;
-    #if VERBOSE == 1
-            std::cerr << "(" << this->number_of_temperatures << ")" 
-                << " t = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()- this->run_start).count()/1000.0 << ","
-                << " T = " << this->Temperature() 
-                << " S/A/ar = [" << this->neighbors_sampled << "/" << this->neighbors_accepted << "/" << static_cast<double>(this->neighbors_accepted)/this->neighbors_sampled << "]"
-                << ", OF = [" << this->current_state_cost.total << "/" << this->best_state_cost.total << "] ";
-            std::cerr << "rates: (";
+    #if VERBOSE >= 1
+            std::cerr << "V1 ";
+            this->PrintStatus(std::cerr);
+            std::cerr << ", time = " << std::chrono::duration_cast<std::chrono::milliseconds>(this->temperature_start_time-this->run_start).count()/1000.0;
+            std::cerr << ", rates: (";
             double sum_rates = 0;
             for(unsigned int i = 0; i < this->ne.Modality(); i++)
               {
@@ -112,7 +109,7 @@ namespace EasyLocal
                         if(i < this->ne.Modality()-1)
                           std::cerr << ",";
                         else
-                          std::cerr << endl;
+                          std::cerr << std::endl;
                       }                
           }
           std::cerr << this->number_of_temperatures << ","
@@ -160,11 +157,9 @@ namespace EasyLocal
                             std::cerr << "nan" << ",";
     #endif    
                 
-                if(learning_data[i].global_improvement > 0.0)
-                  reward[i] = (learning_data[i].global_improvement/learning_data[i].evaluated)
-                            /pow(learning_data[i].global_evaluation_time.count()/static_cast<double>(learning_data[i].accepted),1.0/time_smoother);
-                else
-                  reward[i] = 0;
+
+                reward[i] = ComputeNHReward(i);
+
                 total_reward += reward[i];
               }
 
@@ -214,30 +209,60 @@ namespace EasyLocal
               }
 
     #if VERBOSE >= 1
-            std::cerr << endl;
+            std::cerr << std::endl;
     #endif
-          }
+          
+      }
+
+
+      void CompleteIteration() override 
+      {
+        if (this->CoolingNeeded()) // the batch is finished -> update probabilities and reset learning data
+          ApplyLearning();
         SimulatedAnnealingTimeBased<Input, Solution, Move, CostStructure>::CompleteIteration();
       }
+
+
       void SelectMove() override 
       {
         bool accepted = false;
         do
         {
-          std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::high_resolution_clock::now(); 
+#ifdef HAS_STEADY_CLOCK
+          std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::high_resolution_clock::now();
+#elif defined(HAS_SYSTEM_CLOCK)
+          std::chrono::time_point<std::chrono::system_clock> start = std::chrono::high_resolution_clock::now();
+#elif defined(HAS_AUTO_CLOCK)
+          auto start = std::chrono::high_resolution_clock::now();
+#else
+    #error "No suitable chrono clock available"
+#endif
           this->ne.RandomMove(*this->p_current_state, this->current_move.move); //TO DO: ,this->weights);
           this->current_move.cost = this->ne.DeltaCostFunctionComponents(*this->p_current_state, this->current_move.move);
           this->current_move.is_valid = true;
           if (this->current_move.cost <= 0 || this->current_move.cost < (-this->temperature * log(std::max(Random::Uniform<double>(0.0, 1.0), std::numeric_limits<double>::epsilon()))))
           {
             accepted = true;
-            learning_data[this->ne.GetActiveMove(this->current_move.move)].global_evaluation_time+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::high_resolution_clock::now())-start);
-            //learning_data[this->ne.GetActiveMove(this->current_move.move)].global_evaluation_time+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start);
+            //learning_data[this->ne.GetActiveMove(this->current_move.move)].global_evaluation_time+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::high_resolution_clock::now())-start);
+            learning_data[this->ne.GetActiveMove(this->current_move.move)].global_evaluation_time+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start);
           }
           this->neighbors_sampled++;
           this->evaluations++;
           learning_data[this->ne.GetActiveMove(this->current_move.move)].evaluated++;
         } while(!accepted);
+      }
+
+      virtual double ComputeNHReward(unsigned int i)
+      {
+          double this_reward;
+          if(learning_data[i].global_improvement > 0.0)
+            // this_reward = (learning_data[i].global_improvement/learning_data[i].evaluated)
+            //           /pow(learning_data[i].global_evaluation_time.count()/static_cast<double>(learning_data[i].accepted),1.0/time_smoother);
+            this_reward = (learning_data[i].global_improvement/learning_data[i].evaluated)
+                       /pow(learning_data[i].global_evaluation_time.count()/static_cast<double>(learning_data[i].accepted),time_smoother);
+          else
+            this_reward = 0;
+          return this_reward;
       }
     protected:
       std::vector<LearningData> learning_data;

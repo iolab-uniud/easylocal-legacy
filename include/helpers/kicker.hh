@@ -6,6 +6,7 @@ namespace EasyLocal
 {
 namespace Core
 {
+namespace Kicker {
 template <class Solution, class Move, class CostStructure = DefaultCostStructure<int>>
 struct Kick : public std::vector<std::pair<EvaluatedMove<Move, CostStructure>, Solution>>
 {
@@ -560,5 +561,6 @@ protected:
 
 template <class Input, class Solution, class Move, class CostStructure>
 typename Kicker<Input, Solution, Move, CostStructure>::MoveRelatedness Kicker<Input, Solution, Move, CostStructure>::AllMovesRelated = [](const Move &, const Move &) { return true; };
+} // namespace Kicker
 } // namespace Core
 } // namespace EasyLocal

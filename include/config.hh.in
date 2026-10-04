@@ -1,0 +1,4 @@
+/* Configurations detected by CMake */
+#cmakedefine HAS_STEADY_CLOCK 1
+#cmakedefine HAS_SYSTEM_CLOCK 1
+#cmakedefine HAS_AUTO_CLOCK 1

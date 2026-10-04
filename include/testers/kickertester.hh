@@ -26,7 +26,7 @@ public:
     
     KickerTester(const Input &in,
                  Core::SolutionManager<Input, Solution, CostStructure> &sm,
-                 Core::Kicker<Input, Solution, Move, CostStructure> &k,
+                 Core::Kicker::Kicker<Input, Solution, Move, CostStructure> &k,
                  std::string name, Tester<Input, Solution, CostStructure> &t, std::ostream &o = std::cout);
     virtual size_t Modality() const;
     
@@ -40,7 +40,7 @@ protected:
     Core::SolutionManager<Input, Solution, CostStructure> &sm; /**< A pointer to the attached
                                                                 state manager. */
     int choice;                                          /**< The option currently chosen from the menu. */
-    Core::Kicker<Input, Solution, Move, CostStructure> &kicker;
+    Core::Kicker::Kicker<Input, Solution, Move, CostStructure> &kicker;
     std::ostream &os;
     Parameter<unsigned int> length;
 };
@@ -52,7 +52,7 @@ protected:
 template <class Input, class Solution, class Move, class CostStructure>
 KickerTester<Input, Solution, Move, CostStructure>::KickerTester(const Input &in,
                                                                  Core::SolutionManager<Input, Solution, CostStructure> &sm,
-                                                                 Core::Kicker<Input, Solution, Move, CostStructure> &k, std::string name, Tester<Input, Solution, CostStructure> &t, std::ostream &os)
+                                                                 Core::Kicker::Kicker<Input, Solution, Move, CostStructure> &k, std::string name, Tester<Input, Solution, CostStructure> &t, std::ostream &os)
 : ComponentTester<Input, Solution, CostStructure>(name), Core::CommandLineParameters::Parametrized(name, "Kicker tester parameters"), in(in), sm(sm), kicker(k), os(os)
 {
     t.AddKickerTester(*this);
@@ -118,7 +118,7 @@ template <class Input, class Solution, class Move, class CostStructure>
 bool KickerTester<Input, Solution, Move, CostStructure>::ExecuteChoice(Solution&st)
 {
     bool execute_kick = false;
-    Kick<Solution, Move, CostStructure> kick;
+    Kicker::Kick<Solution, Move, CostStructure> kick;
     DefaultCostStructure<CFtype> cost;
     try
     {

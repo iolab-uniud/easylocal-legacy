@@ -1,10 +1,15 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 
 project(EasyLocal LANGUAGES CXX)
 
+include(CTest)
+
 find_package(Threads REQUIRED)
-find_package(Boost 1.58.0 COMPONENTS program_options REQUIRED)
+find_package(Boost CONFIG COMPONENTS program_options REQUIRED)
 find_package(TBB)
+
+# Include the chrono feature detection module
+include(DetectChronoFeatures)
 
 set(subdirs helpers observers runners solvers testers utils modeling)
 
@@ -24,6 +29,7 @@ file(GLOB headers ${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.hh ${CMAKE_CURRENT_SO
 source_group("Header Files" FILES ${headers})
 
 add_library(EasyLocal INTERFACE)
+# Set fmtlog to be header-only
 target_include_directories(EasyLocal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(EasyLocal INTERFACE Boost::program_options Threads::Threads)
 
@@ -31,9 +37,24 @@ if (TBB_FOUND)
   target_compile_definitions(EasyLocal INTERFACE TBB_AVAILABLE)
   target_link_libraries(EasyLocal INTERFACE TBB::tbb) 
 endif (TBB_FOUND)
+
 target_sources(EasyLocal INTERFACE ${headers})
 target_compile_features(EasyLocal INTERFACE cxx_std_17)
 target_compile_options(EasyLocal INTERFACE "-Wall")
+
+if (BUILD_TESTING)
+  add_executable(easylocal_tracing_test tests/tracing_test.cc)
+  target_link_libraries(easylocal_tracing_test PRIVATE EasyLocal)
+  add_test(NAME tracing COMMAND easylocal_tracing_test)
+
+  add_executable(easylocal_runner_tracing_test tests/runner_tracing_test.cc)
+  target_link_libraries(easylocal_runner_tracing_test PRIVATE EasyLocal)
+  add_test(NAME runner_tracing COMMAND easylocal_runner_tracing_test)
+
+  add_executable(easylocal_tracing_multithread_test tests/tracing_multithread_test.cc)
+  target_link_libraries(easylocal_tracing_multithread_test PRIVATE EasyLocal)
+  add_test(NAME tracing_multithread COMMAND easylocal_tracing_multithread_test)
+endif ()
 
 
 install(

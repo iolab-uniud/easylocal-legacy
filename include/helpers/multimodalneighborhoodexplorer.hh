@@ -707,7 +707,7 @@ namespace EasyLocal
       
       /** Retuns the modality of the neighborhood explorer, i.e., the number of different kind of moves handled by it.
        */
-      size_t Modality() const { return modality; }
+      size_t Modality() const override { return modality; }
       
     protected:
       /** Instantiated base NeighborhoodExplorers. */
@@ -751,7 +751,7 @@ namespace EasyLocal
       }
       
       /** @copydoc NeighborhoodExplorer::FirstMove */
-      virtual void FirstMove(const Solution &st, MoveTypes &moves) const
+      virtual void FirstMove(const Solution &st, MoveTypes &moves) const override
       {
         MoveTypeRefs r_moves = to_refs(moves);
         
@@ -772,7 +772,7 @@ namespace EasyLocal
       }
       
       /** @copydoc NeighborhoodExplorer::RandomMove */
-      virtual void RandomMove(const Solution &st, MoveTypes &moves) const
+      virtual void RandomMove(const Solution &st, MoveTypes &moves) const override
       {
         // transforms the reference to a tuple of moves to a tuple of references to moves
         MoveTypeRefs r_moves = to_refs(moves);
@@ -826,7 +826,7 @@ namespace EasyLocal
       }
       
       /** @copydoc NeighborhoodExplorer::NextMove */
-      virtual bool NextMove(const Solution &st, MoveTypes &moves) const
+      virtual bool NextMove(const Solution &st, MoveTypes &moves) const override
       {
         MoveTypeRefs r_moves = to_refs(moves);
         const MoveTypeCRefs cr_moves = to_crefs(moves);
@@ -865,7 +865,7 @@ namespace EasyLocal
       }
       
       /** @copydoc NeighborhoodExplorer::MakeMove */
-      virtual void MakeMove(Solution&st, const MoveTypes &moves) const
+      virtual void MakeMove(Solution&st, const MoveTypes &moves) const override
       {
         const MoveTypeCRefs cr_moves = to_crefs(moves);
         size_t i = Impl::MoveDispatcher<MoveTypeCRefs, modality - 1>::get_first_active(cr_moves, 0);
@@ -874,7 +874,7 @@ namespace EasyLocal
       }
       
       /** @copydoc NeighborhoodExplorer::DeltaCostFunctionComponents */
-      virtual CostStructure DeltaCostFunctionComponents(const Solution &st, const MoveTypes &moves, const std::vector<double> &weights = std::vector<double>(0)) const
+      virtual CostStructure DeltaCostFunctionComponents(const Solution &st, const MoveTypes &moves, const std::vector<double> &weights = std::vector<double>(0)) const override
       {
         const MoveTypeCRefs cr_moves = to_crefs(moves);
         size_t i = Impl::MoveDispatcher<MoveTypeCRefs, modality - 1>::get_first_active(cr_moves, 0);

@@ -1,6 +1,9 @@
 #pragma once
 
-#include "runners/simulatedannealingevaluationbased.hh"
+#include "runners/simulatedannealing.hh"
+
+//#define VERBOSE 1
+#define CHECKER 1
 
 namespace EasyLocal
 {
@@ -20,14 +23,13 @@ namespace EasyLocal
      @ingroup Runners
      */
     template <class Input, class Solution, class Move, class CostStructure = DefaultCostStructure<int>>
-    class SimulatedAnnealingWithReheating : public SimulatedAnnealingEvaluationBased<Input, Solution, Move, CostStructure>
+    class SimulatedAnnealingWithReheating : public SimulatedAnnealing<Input, Solution, Move, CostStructure>
     {
     public:
         SimulatedAnnealingWithReheating(const Input &in, SolutionManager<Input, Solution, CostStructure> &sm,
                                         NeighborhoodExplorer<Input, Solution, Move, CostStructure> &ne,
-                                        std::string name) : SimulatedAnnealingEvaluationBased<Input, Solution, Move, CostStructure>(in, sm, ne, name)
+                                        std::string name) : SimulatedAnnealing<Input, Solution, Move, CostStructure>(in, sm, ne, name)
         {
-            first_reheat_ratio("first_reheat_ratio", "First reheat ratio", this->parameters);
             reheat_ratio("reheat_ratio", "Reheat ratio", this->parameters);
             first_descent_evaluations_share("first_descent_evaluations_share", "First descent cost function evaluations share", this->parameters);
             max_reheats("max_reheats", "Maximum number of reheats", this->parameters);
@@ -40,8 +42,8 @@ namespace EasyLocal
       void CompleteMove();
       void InitializeRun();
       bool ReheatCondition();
+      void ApplyCooling();
       // additional parameters
-      Parameter<double> first_reheat_ratio;
       Parameter<double> reheat_ratio;
       Parameter<double> first_descent_evaluations_share;
       Parameter<unsigned int> max_reheats;
@@ -55,31 +57,55 @@ namespace EasyLocal
     template <class Input, class Solution, class Move, class CostStructure>
     void SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::InitializeRun()
     {
-      SimulatedAnnealingEvaluationBased<Input, Solution, Move, CostStructure>::InitializeRun();
+      SimulatedAnnealing<Input, Solution, Move, CostStructure>::InitializeRun();
       reheats = 0;
       
       if (max_reheats > 0)
       {
-        if (max_reheats > 1)
+        if (reheat_ratio <= 0.0)
         {
-          if (reheat_ratio <= 0.0)
-            throw IncorrectParameterValue(reheat_ratio, "should be greater than zero");
-          
-          if (!first_reheat_ratio.IsSet())
-            first_reheat_ratio = reheat_ratio;
+          throw IncorrectParameterValue(reheat_ratio, "should be greater than zero");
         }
-        
-        if (first_reheat_ratio <= 0.0)
-          throw IncorrectParameterValue(first_reheat_ratio, "should be greater than zero");
         if (first_descent_evaluations_share <= 0.0 || first_descent_evaluations_share > 1.0)
+        {
           throw IncorrectParameterValue(first_descent_evaluations_share, "should be a value in the interval ]0, 1]");
-        
+        }
         this->max_neighbors_sampled = ceil(this->max_neighbors_sampled * first_descent_evaluations_share);
-        first_descent_evaluations = this->max_evaluations * first_descent_evaluations_share;
-        other_descents_evaluations = (this->max_evaluations - first_descent_evaluations) / max_reheats;
+        this->current_max_neighbors_sampled = this->max_neighbors_sampled;
+        first_descent_evaluations = ceil(this->max_evaluations * first_descent_evaluations_share);
+        other_descents_evaluations = ceil ((this->max_evaluations - first_descent_evaluations) / max_reheats);
+        this->max_neighbors_accepted = static_cast<unsigned>(this->max_neighbors_sampled * this->neighbors_accepted_ratio);
       }
-      this->max_neighbors_accepted = ceil(this->max_neighbors_sampled * this->neighbors_accepted_ratio);
+      
+      if (max_reheats == 0)
+      {
+        if (first_descent_evaluations_share != 1.0)
+        {
+          throw IncorrectParameterValue(first_descent_evaluations_share, "should be 1.0 when max_reheats is 0");
+        }
+        if (reheat_ratio != 0.0)
+        {
+          throw IncorrectParameterValue(reheat_ratio, "should be zero when max_reheats is 0");
+        }
+        first_descent_evaluations = this->max_evaluations;
+        other_descents_evaluations = 0;
+      }
+
+#if VERBOSE == 1
+      std::cout << "Initilize run done -----------------------" << std::endl;
+      std::cout << "Iterations " << this->evaluations << std::endl;
+      std::cout << "max_reheats " << max_reheats << std::endl;
+      std::cout << "reheat_ratio " << reheat_ratio << std::endl;
+      std::cout << "start_temperature " << this->start_temperature << std::endl;
+      std::cout << "total_number_of_temperatures " << this->total_number_of_temperatures << std::endl;
+      std::cout << "max_neighbors_sampled " << this->max_neighbors_sampled << std::endl;
+      std::cout << "max_neighbors_accepted (cut-off) " << this->max_neighbors_accepted << std::endl;
+      std::cout << "max_evaluations " << this->max_evaluations << std::endl;
+      std::cout << "first_descent_evaluations " << first_descent_evaluations << " (share " << first_descent_evaluations_share << ")" << std::endl;
+      std::cout << "other_descents_evaluations " << other_descents_evaluations << std::endl;
+#endif
     }
+    
     
     /**
      A move is randomly picked.
@@ -87,44 +113,111 @@ namespace EasyLocal
     template <class Input, class Solution, class Move, class CostStructure>
     void SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::CompleteMove()
     {
-      SimulatedAnnealingEvaluationBased<Input, Solution, Move, CostStructure>::CompleteMove();
-      if (ReheatCondition() && reheats <= max_reheats)
+      SimulatedAnnealing<Input, Solution, Move, CostStructure>::CompleteMove();
+      
+      if (ReheatCondition() && reheats < max_reheats)
       {
-        //     if (max_reheats != 0)
-        //     {
+        // all reheats are equal
         if (reheats == 0)
-          this->start_temperature = this->start_temperature * first_reheat_ratio;
-        else if (max_reheats > 1)
+	      {
           this->start_temperature = this->start_temperature * reheat_ratio;
-        //     }
-        this->expected_number_of_temperatures = -log(this->start_temperature / this->expected_min_temperature) / log(this->cooling_rate);
-        
-        this->max_neighbors_sampled = other_descents_evaluations / this->expected_number_of_temperatures;
-        this->max_neighbors_accepted = this->max_neighbors_sampled;
+          this->total_number_of_temperatures = static_cast<unsigned>(ceil(-log(this->start_temperature / this->min_temperature) / log(this->cooling_rate)));      
+          this->max_neighbors_sampled = other_descents_evaluations / this->total_number_of_temperatures; 
+          this->current_max_neighbors_sampled = this->max_neighbors_sampled;
+          this->max_neighbors_accepted = static_cast<unsigned>(this->neighbors_accepted_ratio * this->max_neighbors_sampled);
+
+#if VERBOSE == 1
+          std::cout << "Reheat parameters are reset -----------------------" << std::endl;
+          std::cout << "Iterations " << this->evaluations << std::endl;
+          std::cout << "max_reheats " << max_reheats << std::endl;
+          std::cout << "reheats " << reheats << std::endl;
+          std::cout << "reheat_ratio " << reheat_ratio << std::endl;
+          std::cout << "start_temperature " << this->start_temperature << std::endl;
+          std::cout << "total_number_of_temperatures " << this->total_number_of_temperatures  << std::endl;
+          std::cout << "max_neighbors_sampled " << this->max_neighbors_sampled << std::endl;
+          std::cout << "max_neighbors_accepted (cut-off) " << this->max_neighbors_accepted << std::endl;
+          std::cout << "max_evaluations " << this->max_evaluations << std::endl;
+          std::cout << "first_descent_evaluations " << first_descent_evaluations << " (share " << first_descent_evaluations_share << ")" << std::endl;
+          std::cout << "other_descents_evaluations " << other_descents_evaluations << std::endl;
+#endif
+	      }
         reheats++;
-        
-        // std::cerr << reheats << " " << this->max_neighbors_sampled << " " << this->max_neighbors_accepted  << " " << this->start_temperature << " " << this->temperature << std::endl;
+        // reset temperature
         this->temperature = this->start_temperature;
+        this->number_of_temperatures = 1;
+        this->neighbors_sampled = 0;
+        this->neighbors_accepted = 0;
+#if VERBOSE == 1
+        std::cout << "Performing reheat -----------------------" << std::endl;
+        std::cout << "max_reheats " << max_reheats << std::endl;
+        std::cout << "reheats " << reheats << std::endl;
+        std::cout << "temperature " << this->temperature << std::endl;
+#endif
       }
+
     }
     
+  template <class Input, class Solution, class Move, class CostStructure>
+  void SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::ApplyCooling()
+  {
+#if CHECKER == 2
+    std::cout << "Calling cooling in SA reheating" << std::endl;
+#endif
+    this->residual_temperatures = this->total_number_of_temperatures - this->number_of_temperatures; 
+    if (this->neighbors_sampled < this->current_max_neighbors_sampled && this->residual_temperatures > 0) 
+    { // we have saved some iterations thanks to the cut-off: they are 
+      // redistributed to the remaining temperatures
+      this->residual_iterations = first_descent_evaluations_share - this->evaluations;
+      if (reheats > 0)
+      {
+        this->residual_iterations = first_descent_evaluations_share + reheats * other_descents_evaluations - this->evaluations;
+      }
+      this->current_max_neighbors_sampled = this->residual_iterations/this->residual_temperatures;
+    }
+    if(this->residual_temperatures > 0)
+    {
+      this->temperature *= this->cooling_rate;
+      this->number_of_temperatures++;
+      this->neighbors_sampled = 0;
+      this->neighbors_accepted = 0;
+    }
+#if CHECKER >= 1
+    if (this->temperature < this->min_temperature)
+    {
+      std::cout << "Temperature is not under control -- " << this->number_of_temperatures << " (min "<< this->min_temperature << " vs temperature " << this->temperature << ")" << std::endl;
+    }
+#endif
+  #if VERBOSE > 1
+    std::cerr << "V1 ";
+    PrintStatus(std::cerr);
+    std::cerr << std::endl;
+  #endif
+  } 
+
     template <class Input, class Solution, class Move, class CostStructure>
     bool SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::ReheatCondition()
     {
-      if (max_reheats == 0)
-        return false; //true;
+      if (max_reheats == 0 || reheats >= max_reheats)
+      {
+        return false; 
+      }
       return this->evaluations >= first_descent_evaluations + other_descents_evaluations * reheats;
     }
-    
-    /**
-     The search stops when a low temperature has reached.
-     */
+  
     template <class Input, class Solution, class Move, class CostStructure>
     bool SimulatedAnnealingWithReheating<Input, Solution, Move, CostStructure>::StopCriterion()
     {
-      return reheats > max_reheats;
+      bool condition = reheats >= max_reheats  && this->temperature <= this->min_temperature ;
+#if VERBOSE == 1
+      if (condition)
+      {
+        std::cout << "Stop criterion check -----------------------" << std::endl;
+        std::cout << "max_reheats " << max_reheats << std::endl;
+        std::cout << "reheats " << reheats << std::endl;
+      }
+#endif
+      return condition;
     }
-    
     /**
      Create a string containing the status of the runner
      */

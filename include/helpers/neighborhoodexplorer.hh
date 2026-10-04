@@ -172,7 +172,7 @@ public:
      This method will select the first move in the exhaustive neighborhood exploration that
      matches with the criterion expressed by the functional object bool f(const Move& mv, CostStructure cost)
      */
-    virtual EvaluatedMove<Move, CostStructure> SelectFirst(const Move& start_move, const Solution &st, size_t &explored, const MoveAcceptor &AcceptMove, const std::vector<double> &weights = std::vector<double>(0)) const;
+    virtual EvaluatedMove<Move, CostStructure> SelectRandomFirst(const Solution &st, size_t &explored, const MoveAcceptor &AcceptMove, const std::vector<double> &weights = std::vector<double>(0)) const;
     
     /**
      This method will select the best move in the exhaustive neighborhood exploration that
@@ -346,34 +346,31 @@ EvaluatedMove<Move, CostStructure> NeighborhoodExplorer<Input, Solution, Move, C
 }
 
 template <class Input, class Solution, class Move, class CostStructure>
-EvaluatedMove<Move, CostStructure> NeighborhoodExplorer<Input, Solution, Move, CostStructure>::SelectFirst(const Move& start_move, const Solution &st, size_t &explored, const MoveAcceptor &AcceptMove, const std::vector<double> &weights) const
+EvaluatedMove<Move, CostStructure> NeighborhoodExplorer<Input, Solution, Move, CostStructure>::SelectRandomFirst(const Solution &st, size_t &explored, const MoveAcceptor &AcceptMove, const std::vector<double> &weights) const
 {
-    // Cyclic exploration: from the move after start_move to the last move,
-    // then from the first move back to start_move. If start_move is no longer
-    // in the neighborhood (the state has changed), the second pass runs to the
-    // last move, so some moves may be explored twice.
     explored = 0;
     EvaluatedMove<Move, CostStructure> mv;
+    Move start_move;
+    RandomMove(st, start_move);
     mv.move = start_move;
-    bool wrapped = false;
+    bool restarted = false;
     do
     {
-        if (!NextMove(st, mv.move))
+      if (!NextMove(st, mv.move))
         {
-            if (wrapped)
-                break;
-            wrapped = true;
-            FirstMove(st, mv.move);
+          restarted = true;
+          FirstMove(st, mv.move);
         }
-        mv.cost = DeltaCostFunctionComponents(st, mv.move, weights);
-        explored++;
-        mv.is_valid = true;
-
-        if (AcceptMove(mv.move, mv.cost))
+      if (mv.move != start_move)
+        {          
+          mv.cost = DeltaCostFunctionComponents(st, mv.move, weights);
+          explored++;
+          mv.is_valid = true;
+          if (AcceptMove(mv.move, mv.cost))
             return mv; // mv passes the acceptance criterion
+        }
     }
-    while (!wrapped || mv.move != start_move);
-    
+    while (mv.move < start_move || !restarted); 
     // exiting this loop means that there is no mv passing the acceptance criterion
     return EvaluatedMove<Move, CostStructure>::empty;
 }
