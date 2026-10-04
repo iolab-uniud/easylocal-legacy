@@ -1,10 +1,15 @@
 # EasyLocal++
 
+> [!IMPORTANT]
+> **This repository is archived.** It holds EasyLocal++ 2.x and 3.x, the last
+> release being 3.4.0. EasyLocal is now developed, as a complete redesign for
+> C++23, at **[iolab-uniud/easylocal](https://github.com/iolab-uniud/easylocal)**.
+
 EasyLocal++ is a framework for modeling and solving combinatorial optimization problems through local search metaheuristics. The framework is entirely written in C++ and makes broad use of template metaprogramming to achieve both separation of concerns and performance. 
 
 Typically, to solve a problem, it is sufficient to implement the necessary methods to compute the problem-specific **cost function** and to enumerate the problem-specific **local search moves**. The framework takes care of calling the user-defined hook methods to solve the problem using one of the implemented meta-heuristics (e.g. simulated annealing, tabu search, hill climbing, ...).
 
-This repository contains the last iteration (currently 3.0) of the EasyLocal++ framework. A seed project to use as a starting point for EasyLocal++ projects is available at [https://bitbucket.org/satt/easylocal-seed-project/](https://bitbucket.org/satt/easylocal-seed-project/).
+This repository contains the 3.x iteration of the EasyLocal++ framework (3.4.0 being the last release). A seed project to use as a starting point for EasyLocal++ projects is available at [https://bitbucket.org/satt/easylocal-seed-project/](https://bitbucket.org/satt/easylocal-seed-project/).
 
 ## How to install EasyLocal++
 
