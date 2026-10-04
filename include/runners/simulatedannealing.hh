@@ -267,7 +267,10 @@ void SimulatedAnnealing<Input, Solution, Move, CostStructure>::ApplyCooling()
   if (neighbors_sampled < current_max_neighbors_sampled && residual_temperatures > 0) 
     { // we have saved some iterations thanks to the cut-off: they are 
       // redistributed to the remaining temperatures
-      residual_iterations = this->max_evaluations - this->evaluations;
+      // the budget is max_evaluations or, when it is not set, the samples of
+      // every temperature level
+      const unsigned long int budget = this->max_evaluations.IsSet() ? this->MaxEvaluations() : static_cast<unsigned long int>(initial_max_neighbors_sampled) * total_number_of_temperatures;
+      residual_iterations = budget - this->evaluations;
       current_max_neighbors_sampled = residual_iterations/residual_temperatures;
       // NOTE: the number of accepted moves depends on the initial number of sampled, NOT from the current one
     }

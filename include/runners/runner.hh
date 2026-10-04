@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <climits>
+#include <limits>
 #include <chrono>
 #include <condition_variable>
 #include <atomic>
@@ -88,7 +89,8 @@ public:
   /** Gets the ... */
   unsigned long int MaxEvaluations() const
   {
-    return max_evaluations;
+    // Not set: no limit
+    return max_evaluations.IsSet() ? static_cast<unsigned long int>(max_evaluations) : std::numeric_limits<unsigned long int>::max();
   }
 
   /** Set the ... */
@@ -294,8 +296,8 @@ Runner<Input, Solution, CostStructure>::Runner(const Input &in, SolutionManager<
   // Add to the list of all runners
     runners.push_back(this);
     max_evaluations("max_evaluations", "Maximum total number of cost function evaluations allowed", this->parameters);
-    // This parameter has a default value
-    //    max_evaluations = std::numeric_limits<unsigned long int>::max();
+    // When not set, the evaluations are not limited (see MaxEvaluations); it
+    // has no default value, so that a runner can tell whether it was set.
 }
 
 template <class Input, class Solution, class CostStructure>
@@ -445,7 +447,7 @@ bool Runner<Input, Solution, CostStructure>::LowerBoundReached() const
 template <class Input, class Solution, class CostStructure>
 bool Runner<Input, Solution, CostStructure>::MaxEvaluationsExpired() const
 {
-  return evaluations >= max_evaluations;
+  return max_evaluations.IsSet() && evaluations >= max_evaluations;
 }
 
 template <class Input, class Solution, class CostStructure>

@@ -1,3 +1,10 @@
+3.4.1
+
+* A runner without max_evaluations runs without a limit on the evaluations,
+  as before 3.4: the descents no longer fail with "max_evaluations not set",
+  and SimulatedAnnealing accepts max_neighbors_sampled alone (the iterations
+  a cut-off saves are spread over the samples of the remaining temperatures).
+
 3.4.0
 
 The development of EasyLocal++ 3 since 3.3 (Andrea Schaerf, Roberto Maria
