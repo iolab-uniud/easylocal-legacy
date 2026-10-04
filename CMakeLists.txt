@@ -9,6 +9,7 @@ find_package(Boost CONFIG COMPONENTS program_options REQUIRED)
 find_package(TBB)
 
 # Include the chrono feature detection module
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(DetectChronoFeatures)
 
 set(subdirs helpers observers runners solvers testers utils modeling)

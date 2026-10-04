@@ -1,3 +1,33 @@
+3.4.0
+
+The development of EasyLocal++ 3 since 3.3 (Andrea Schaerf, Roberto Maria
+Rosati, Francesca Da Ros, Luca Di Gaspero), merged from satt/easylocal-3.
+
+Changes in behaviour:
+
+* FirstDescent starts each scan from a random move
+  (NeighborhoodExplorer::SelectRandomFirst), which compares moves with
+  operator<; SelectFirst(start_move, ...) is gone.
+* The random generator is faster and sized to the range drawn
+  (utils/random.hh), so runs with the same seed take other trajectories than
+  in 3.3.
+* SimulatedAnnealing and SimulatedAnnealingEvaluationBased are one class,
+  and the initial temperature, when not given, is estimated with a revised
+  strategy.
+
+Additions:
+
+* SimulatedAnnealingOnlyCutoff: cools only once enough moves have been
+  accepted (neighbors_accepted_ratio of a temperature's share of the
+  evaluations).
+* SimulatedAnnealingFixedTemperature, and SimulatedAnnealingWithReheating
+  based on iterations.
+* Tracing of the runners' events (include/tracing, docs/tracing.md) and
+  logging; the current solution of a runner, not only the best.
+* Revisions of Tabu Search and of the testers' menus; fixes of cut-off
+  iterations, of max_neighbors_sampled across runs, of start_temperature and
+  of the 16-bit random fallback.
+
 3.3.1
 
 * FirstDescent terminates: NeighborhoodExplorer::SelectFirst(start_move, ...)
